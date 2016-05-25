@@ -7,36 +7,37 @@
 int main(int argc, char const *argv[])
 {
 
-	int i, swap;
+	int i, j;
 	int RandomArray[10], SortingArray[10];
 	int count =  10;
 
-	printf("RandomArray is \n");
+	printf("RandomArray is :");
 	for (int i = 0; i < count; ++i)
 	{
 		RandomArray[i] = rand() % 20 + 1;
 		printf("%d, ", RandomArray[i]);
 	}
+	printf("\n");
 
-
-	for (int i = 0; i < count ; ++i)
+	for ( i = 0; i < count ; ++i)
 	{
-		for (int j = 0; j < count; ++i)
+		int min = RandomArray[i];
+		for ( j = 0; j < count; ++j)
 		{
-			if (RandomArray[i + 1] > RandomArray[i]) {
-				swap = RandomArray[i];
-				RandomArray[i] = RandomArray[i + 1];
-				RandomArray[i + 1] = swap;
+			if (min < RandomArray[j]) {
+				min = RandomArray[j];
+				RandomArray[j] = RandomArray[i];
+				RandomArray[i] = min;
 			}
 		}
 	}
 
-	for (int i = 0; i < count; ++i)
+	printf("SortingArray is : ");
+	for ( i = 0; i < count; ++i)
 	{
-
 		printf("%d, ", RandomArray[i]);
 	}
-
+	printf("\n");
 
 
 	return 0;

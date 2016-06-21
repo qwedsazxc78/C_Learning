@@ -3,11 +3,14 @@
 
 int main() {
 	
-	int age;
-	int StartYear = 1989, CurrentYear = 2016;
-	age = CurrentYear - StartYear;
-	printf("My birth year is %d and my age is %d\n", StartYear, age);
-
+	long timestamp = 1422748800000;
+	long timeHR = 3600000;
+	int counter = 30;
+	for (int i = 0; i < counter; ++i)
+	{
+		timestamp = timestamp + timeHR;
+		printf("%ld\n", timestamp);
+	}
 
 	return 0;
-}
+};

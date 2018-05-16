@@ -12,11 +12,11 @@ int main(int argc, char const *argv[])
 
 	printf("-- 2. show type by point --" );
 	i = 0;
-	while (argv[i] != NULL) {
+	while (argv[i] != NULL)
+	{
 		printf("argv: %s\n", argv[i]);
 		i++;
 	}
-
 
 	return 0;
 }

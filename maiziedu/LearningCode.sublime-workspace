@@ -1,0 +1,1100 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"mag",
+				"magRaw"
+			],
+			[
+				"uint_",
+				"uint32_t"
+			],
+			[
+				"uint",
+				"uint16_t\t(main.c)"
+			],
+			[
+				"ST",
+				"STATE_CAR"
+			],
+			[
+				"IS",
+				"IST_FALSE"
+			],
+			[
+				"EPK",
+				"EPK_DEMO_MODE\t(main.c)"
+			],
+			[
+				"IST",
+				"IST_FALSE"
+			],
+			[
+				"STATE",
+				"STATE_CAR"
+			],
+			[
+				"S",
+				"STATE_CAR"
+			],
+			[
+				"detectSat",
+				"detectStateCode"
+			],
+			[
+				"STATE_CA",
+				"STATE_CALIBRATING"
+			],
+			[
+				"cali",
+				"caliMagData"
+			],
+			[
+				"esl",
+				"elseif"
+			],
+			[
+				"MAG",
+				"MAG_DATA_AXIS"
+			],
+			[
+				"car",
+				"carBias"
+			],
+			[
+				"smoo",
+				"magSmoother"
+			],
+			[
+				"ge",
+				"geomagnetic"
+			],
+			[
+				"limit",
+				"limitBias"
+			],
+			[
+				"time",
+				"timePeriod"
+			],
+			[
+				"if",
+				"if\tIf Condition"
+			],
+			[
+				"for",
+				"for\tFor Loop"
+			],
+			[
+				"GPIO",
+				"GPIO_PIN_0"
+			],
+			[
+				"int",
+				"int16_t"
+			],
+			[
+				"fo",
+				"for\tFor Loop"
+			],
+			[
+				"es",
+				"else"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"contents": "BMA455 / BMA456\nADXL355",
+			"settings":
+			{
+				"buffer_size": 23,
+				"line_ending": "Windows",
+				"name": "BMA455 / BMA456"
+			}
+		},
+		{
+			"contents": " /* ----------------- Template ---------------- */\n<template>\n    <div id=\"Main\">\n        <div class=\"header\">\n            <div class=\"header-item-wrap is-title\">\n                <div class=\"header-item title\">\n                    <h1>{{name}}</h1>\n                    <p>{{id}}</p>\n                </div>\n            </div>\n            <div class=\"header-item-wrap is-right\">\n                <a class=\"header-item btn\" @click.prevent=\"SaveDatalog\">\n              <img src=\"../assets/icon/icon-save.png\" width=\"100%\" />\n            </a>\n                <a class=\"header-item btn\" @click.prevent=\"Reset\">\n              <img src=\"../assets/icon/icon-reset.png\" width=\"100%\" />\n            </a>\n                <a id=\"disconnect-button\" class=\"header-item btn\" @click.prevent=\"Disconnect\">\n              <img src=\"../assets/icon/icon-disconnect.png\" width=\"100%\" />\n            </a>\n            </div>\n        </div>\n        <my-datachart :datalogs=\"v.datalogs\" class=\"my-datachart\"></my-datachart>\n        <pre class=\"pre-datalog\">{{v.datalogString}}</pre>\n        <div id=\"Datalog\">\n            <p v-for=\"(datalog,key) in v.datalogs\" :key=\"key\">{{datalog}}</p>\n        </div>\n        <ul>\n            <li v-for=\"(dataItem, key) in v.dataItems\" :key=\"key\" @click=\"dataItem.isActive = true\" :class=\"{ active: dataItem.isActive }\" class=\"data-item\">\n                <div>\n                    <mt-cell :class=\"{settable: dataItem.isSettable, hidden:dataItem.isHidden}\" :title=\"dataItem.name\" :value=\"dataItem.value\" @click.native=\"SettingData(key,$event)\"></mt-cell>\n                </div>\n            </li>\n        </ul>\n        <!-- 測試用按鈕 -->\n        <!-- <button id=\"RestTest\" @click=\"RestTest\" style=\"\">RestTest</button> -->\n    </div>\n</template>\n/* ----------------- Script ---------------- */\n<script>\nimport Datachart from \"@/components/DataChart\";\n\nimport $ from \"jQuery\";\nimport { MessageBox } from \"mint-ui\";\nimport { Popup } from 'mint-ui';\n\nconst START_SYMBOL = '@'\nconst END_SYMBOL = '&'\n\nlet base = 495;\nconst C_datalogsMax = 1000;\nlet v = {\n    haveBLE: false,\n    popupVisible: false,\n    datalogString: \"\",\n    datalogs: [],\n\n    dataItems: {\n        SettingTemperature: {\n            name: \"目標溫度\",\n            value: 500,\n            isActive: false,\n            isSettable: true,\n            inputValue: 0,\n            cmdCode: \"T\"\n        },\n        CurrentTemperature: {\n            name: \"現在溫度\",\n            value: 0,\n            isActive: false,\n            isSettable: false\n        },\n        PWM: {\n            name: \"加熱器輸出\",\n            value: 0,\n            isActive: false,\n            isSettable: false\n        },\n        SleepCount: {\n            name: \"休眠倒數\",\n            value: 300,\n            isActive: false,\n            isSettable: false\n        },\n        ActivityThreshold: {\n            name: \"敏感度\",\n            value: 5,\n            isActive: false,\n            isSettable: true,\n            inputValue: 0,\n            cmdCode: \"A\"\n        },\n        Factor_P: {\n            name: \"Factor_1\",\n            value: 0,\n            isActive: false,\n            isSettable: false,\n            isHidden: true\n        },\n        Factor_I: {\n            name: \"Factor_2\",\n            value: 0,\n            isActive: false,\n            isSettable: false,\n            isHidden: true\n        },\n        Factor_D: {\n            name: \"Factor_3\",\n            value: 0,\n            isActive: false,\n            isSettable: false,\n            isHidden: true\n        },\n        CoefficientP: {\n            name: \"參數1\",\n            value: 0.8,\n            isActive: false,\n            isSettable: false,\n            inputValue: 0,\n            cmdCode: \"P\",\n            isHidden: true\n        },\n        CoefficientI: {\n            name: \"參數2\",\n            value: 1.0,\n            isActive: false,\n            isSettable: false,\n            inputValue: 0,\n            cmdCode: \"I\",\n            isHidden: true\n        },\n        CoefficientD: {\n            name: \"參數3\",\n            value: 1.2,\n            isActive: false,\n            isSettable: false,\n            inputValue: 0,\n            cmdCode: \"D\",\n            isHidden: true\n        }\n    }\n}\n\nexport default {\n    name: \"MainPage\",\n    props: [\"id\", \"name\"],\n    data: function() {\n        return { v: v };\n    },\n    components: { \"my-datachart\": Datachart },\n    mounted: function() {\n        document.addEventListener('deviceready', this.onDeviceReady, false)\n\n        if (window.cordova) {\n            ble.isEnabled(\n                () => {\n                    v.haveBLE = true\n                    this.DataLogging()\n                },\n                () => {\n                    v.haveBLE = false\n                    this.DataLogging()\n                }\n            )\n        } else {\n            v.haveBLE = false\n            this.DataLogging()\n        }\n    },\n    updated: function() {\n        $(\"#Datalog\").scrollTop($(\"#Datalog\")[0].scrollHeight)\n    },\n    methods: {\n        RestTest: function() {\n            v.datalogString += `${START_SYMBOL}WTPower by MyAItech${END_SYMBOL}\\n`;\n            //base += 10; \n        },\n        onDeviceReady: function() {\n            ble.isEnabled(() => {\n                v.haveBLE = true\n                ble.startNotification(this.$props.id, \"FFE0\", \"FFE1\", this.onDataLogging, this.onError);\n            }, v.haveBLE = false);\n        },\n        Disconnect: function(event) {\n            if (v.haveBLE) {\n                ble.disconnect(this.id, this.onDisconnect, this.onError);\n            } else {\n                this.$router.push({ name: \"Connect\" });\n            }\n        },\n        onDisconnect: function(device) {\n            this.$router.push({ name: \"Connect\" });\n        },\n        Reset: function(device) {\n            v.datalogs.splice(0)\n        },\n        onDataLogging: function(datalog) {\n            v.datalogString += bytesToString(datalog);\n        },\n        DataLogging: function() {\n\n            if (window.cordova) {\n                ble.isEnabled(\n                    () => {\n                        v.haveBLE = true\n                    },\n                    () => {\n                        v.haveBLE = false\n                    }\n                )\n            } else {\n                v.haveBLE = false\n            }\n\n            let create_DummyData = function() {\n                //產生假資料\n                let temp = base + Math.round(Math.random() * 10);\n                let noise = ',40&\\n';\n                let datalog = `${noise}@DL${v.dataItems[\"SettingTemperature\"].value},${temp},199.20,${v.dataItems[\"CoefficientP\"].value},498.00,${v.dataItems[\"CoefficientI\"].value},498.00,${v.dataItems[\"CoefficientD\"].value},40&`;\n                v.datalogString += bytesToString(stringToBytes(datalog));\n            }\n\n            let update_Datalogs = function() {\n                let datalogs = v.datalogString.match(/@[^\\@\\&]*&/);\n\n                while (datalogs) {\n                    //console.log(datalogs)\n                    let datalog = datalogs[0];\n                    let start = datalogs.index + datalog.length;\n                    datalog = datalog.slice(1, -1);\n                    if (datalog.startsWith(\"DL\")) {\n                        v.datalogs.push(datalog.slice(2, datalog.lengh).split(\",\"));\n                        if (v.datalogs.length > C_datalogsMax) v.datalogs.shift();\n                    } else {\n                        if (datalog.match(/System Start/)) {\n                            datalog = \"裝置已啟動\"\n                        }\n                        if (datalog.match(/WT.*/)) {\n                            datalog = \"設定溫度成功\"\n                        }\n                        MessageBox(\"系統資訊\", datalog);\n                    }\n                    v.datalogString = v.datalogString.slice(start, v.datalogString.length);\n\n                    datalogs = v.datalogString.match(/@[^\\@\\&]*&/);\n                }\n\n                // datalog[n] 會與 MCU 端的第n個資料對應\n                if (v.datalogs.length > 0) {\n                    let datalog = v.datalogs[v.datalogs.length - 1];\n                    if (v.dataItems[\"SettingTemperature\"].inputValue != 0) {\n                        v.dataItems[\"SettingTemperature\"].value = v.dataItems[\"SettingTemperature\"].inputValue;\n                        v.dataItems[\"SettingTemperature\"].inputValue = 0;\n                    } else {\n                        v.dataItems[\"SettingTemperature\"].value = datalog[0]\n                    }\n\n                    v.dataItems[\"CurrentTemperature\"].value = datalog[1]\n                    v.dataItems[\"Factor_P\"].value = datalog[2]\n                    v.dataItems[\"CoefficientP\"].value = datalog[3]\n                    v.dataItems[\"Factor_I\"].value = datalog[4]\n                    v.dataItems[\"CoefficientI\"].value = datalog[5]\n                    v.dataItems[\"Factor_D\"].value = datalog[6]\n                    v.dataItems[\"CoefficientD\"].value = datalog[7]\n                    v.dataItems[\"PWM\"].value = datalog[8]\n                    v.dataItems[\"SleepCount\"].value = datalog[9]\n                    v.dataItems[\"ActivityThreshold\"].value = datalog[13]\n\n                    if (datalog[9] == \"0\") v.dataItems[\"SleepCount\"].value = \"Device Sleeping\"\n                    if (datalog[10] == \"1\") v.dataItems[\"PWM\"].value = \"Heating Error!!\"\n                    if (datalog[11] == \"1\") v.dataItems[\"CurrentTemperature\"].value = \"Sensor Error!!\"\n                    if (datalog[11] == \"2\") v.dataItems[\"CurrentTemperature\"].value = \"No Sensor\"\n                    if (datalog[12] == \"1\") v.dataItems[\"SleepCount\"].value = \"No Sensor\"\n                }\n            }\n\n            if (!v.haveBLE) {\n                this.$props.id = \"\"\n                this.$props.name = \"Test Device\"\n                // = \"Test Device\"\n                create_DummyData()\n            }\n\n            update_Datalogs()\n            setTimeout(this.DataLogging, 1000)\n        },\n        onSettingData: function(value, key) {\n            v.dataItems[key].value = value\n        },\n        onSettingDataCancel: function() {\n            console.log(\"cancel\")\n        },\n        SettingData: function(key, event) {\n            let value = v.dataItems[key].value;\n            if (v.dataItems[key].isSettable == true) { \n                MessageBox.prompt(\"\", {\n                    title: v.dataItems[key].name,\n                    message: ' ',\n                    inputType: 'number',\n                    inputValue: v.dataItems[key].value\n                }).then(({ value, action }) => {\n\n                    v.dataItems[key].inputValue = value;\n                    if (v.haveBLE) {\n                        let cmd = `W${v.dataItems[key].cmdCode}${value.padStart(3, '0')}&`\n                        ble.write(this.$props.id, \"FFE0\", \"FFE1\", stringToBytes(cmd));\n                    }\n                }, () => {});\n            }\n        },\n        SaveDatalog: function() {\n            window.resolveLocalFileSystemURL(\n                cordova.file.externalDataDirectory,\n                function(dirEntry) {\n                    //alert(JSON.stringify(dirEntry));\n                    //alert(\"file system open: \" + dirEntry.name);\n                    let isAppend = false;\n                    let d = new Date();\n                    let filename = `datalog_${d.getMonth()+1}${d.getDate()<10?(\"0\"+d.getDate()):d.getDate()}_${d.getHours()}${d.getMinutes()}${d.getSeconds()}.txt`;\n                    createFile(dirEntry, filename, isAppend);\n                },\n                this.onError\n            );\n        },\n        onError: function(reason) {\n            MessageBox(\"ERROR\", JSON.stringify(reason))\n        }\n    }\n};\n\nfunction createFile(dirEntry, fileName, isAppend) {\n    dirEntry.getFile(\n        fileName, { create: true, exclusive: false },\n        function(fileEntry) {\n            let dataString = '';\n            for (let datalog of v.datalogs) {\n                dataString += datalog.toString() + \"\\n\"\n            }\n            writeFile(fileEntry, dataString, isAppend);\n        },\n        onError\n    );\n}\n\nfunction writeFile(fileEntry, dataObj, isAppend) {\n    fileEntry.createWriter(function(fileWriter) {\n        fileWriter.onwriteend = function() {\n            alert(\"Successful file read...\");\n            readFile(fileEntry);\n        };\n\n        fileWriter.onerror = function(e) {\n            alert(\"Failed file read: \" + e.toString());\n        };\n\n        if (isAppend) {\n            try {\n                fileWriter.seek(fileWriter.length);\n            } catch (e) {\n                alert(\"file doesn't exist!\");\n            }\n        }\n        fileWriter.write(dataObj);\n    });\n}\n\nfunction stringToBytes(string) {\n    var array = new Uint8Array(string.length);\n    for (var i = 0, l = string.length; i < l; i++) {\n        array[i] = string.charCodeAt(i);\n    }\n    return array.buffer;\n}\n\nfunction bytesToString(buffer) {\n    return String.fromCharCode.apply(null, new Uint8Array(buffer));\n}\n\nfunction onError(reason) {\n    MessageBox(\"ERROR\", \"Device Disconnected\");\n}\n</script>\n/* ----------------- Style ---------------- */\n<style lang=\"scss\" scoped>\n@import \"../scss/_variables\";\n#DevBoard {\n    text-align: center;\n    padding: 5px;\n    border-bottom: 1px solid #333;\n}\n\n#DevBoard img {\n    height: 40px;\n}\n\n.mint-header {\n    background-color: $primary-color;\n}\n\nh1.mint-header-title {\n    color: $logo-text-color;\n}\n\n.mint-header h1 {\n    font-size: $header-font-size;\n}\n\n\n.mint-cell.hidden {\n    display: none;\n}\n\n.popup-container {\n    width: 40px;\n    height: 100%;\n}\n</style>\n/* ----------------- Test Flex ---------------- */\n<style lang=\"scss\">\n@import \"../scss/_variables\";\n\n.header {\n    background-color: $primary-color;\n    display: flex;\n    align-items: center;\n    padding: 5px;\n}\n\n.header-item-wrap {\n    //border: 1px solid #FFF;\n    display: flex;\n\n    &.is-title {\n        flex: 1;\n    }\n}\n\n.title.header-item {\n    margin-left: 12px;\n    color: #fff;\n    overflow: hidden;\n    text-overflow: ellipsis;\n\n    h1 {\n        font: 1.1em sans-serif;\n        font-weight: 700;\n    }\n    p {\n        font: 0.8em;\n        display: block;\n        margin: 0;\n        padding: 0;\n        margin-top: 2px;\n        color: lighten($primary-color, 40%);\n    }\n}\n\n.btn.header-item {\n    $icon-width: 24px;\n\n    margin: 0 $icon-width/3;\n    padding: $icon-width/3;\n    width: $icon-width;\n\n    &:active {\n        background-color: lighten($primary-color, 10%);\n        border-radius: $icon-width;\n    }\n}\n</style>\n/* ----------------- Test Flex ---------------- */\n<style lang=\"scss\">\n@import \"../scss/_variables\";\n@import \"../scss/_reboot\";\n\n.header .is-right {}\n\n.mint-header::after {\n    content: \"\";\n    display: table;\n    clear: both;\n}\n\n.header-icon {\n    margin: 5px;\n}\n\n.mint-cell.settable {\n    //    color: #00a;\n}\n\n.settable .mint-cell-value {\n    //    font-family: sans-serif;\n    color: $primary-color;\n}\n\n.mint-cell {\n    font-family: sans-serif;\n}\n\n.pre-datalog {\n    display: none;\n    margin: 5px;\n    padding: 5px;\n    height: 50px;\n    border: 1px solid black;\n    overflow: auto;\n}\n</style>\n<style scoped>\n.my-datachart {\n    margin: 5px;\n}\n\n#Datalog {\n    display: none;\n    margin: 5px;\n    padding: 5px;\n    height: 100px;\n    border: 1px solid black;\n    overflow: auto;\n}\n\n.data-item {\n    margin: 0;\n    /* padding: 5px; */\n    width: 100%;\n}\n\np {\n    font: 0.8em sans-serif;\n}\n</style>",
+			"file": "/C/Users/admin/Desktop/MainPage.vue",
+			"file_size": 16011,
+			"file_write_time": 131691213281505692,
+			"settings":
+			{
+				"buffer_size": 15360,
+				"encoding": "UTF-8",
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.8_Latest_Version/Makefile_list/Microchip-XC16/Makefile",
+			"settings":
+			{
+				"buffer_size": 227,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.8_Latest_Version/Makefile_list/Hisi/Makefile",
+			"settings":
+			{
+				"buffer_size": 255,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/KEIL_CortexM4_GoerTek _IST8310/mcu_arm_linux/20170706/mcu_arm_linux_v2_0_3_20170706/Makefile",
+			"settings":
+			{
+				"buffer_size": 426,
+				"line_ending": "Windows"
+			}
+		}
+	],
+	"build_system": "Packages/User/C_Compiler.sublime-build",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					""
+				],
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					"Run"
+				]
+			],
+			[
+				"Packages/C++/C++ Single File.sublime-build",
+				"Run"
+			]
+		],
+		[
+			[
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					""
+				],
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					"Run"
+				],
+				[
+					"Packages/User/g++ c code builder.sublime-build",
+					""
+				],
+				[
+					"Packages/User/NodeJS.sublime-build",
+					""
+				]
+			],
+			[
+				"Packages/C++/C++ Single File.sublime-build",
+				"Run"
+			]
+		],
+		[
+			[
+				[
+					"Packages/User/C_Compiler.sublime-build",
+					""
+				],
+				[
+					"Packages/User/C_Compiler.sublime-build",
+					"Run"
+				]
+			],
+			[
+				"Packages/User/C_Compiler.sublime-build",
+				"Run"
+			]
+		],
+		[
+			[
+				[
+					"Packages/User/g++ c code builder.sublime-build",
+					""
+				],
+				[
+					"Packages/User/g++ c code builder.sublime-build",
+					"Run"
+				]
+			],
+			[
+				"Packages/User/g++ c code builder.sublime-build",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 368.0,
+		"last_filter": "packin",
+		"selected_items":
+		[
+			[
+				"packin",
+				"Package Control: Install Package"
+			],
+			[
+				" set syntax : c",
+				"Set Syntax: C"
+			],
+			[
+				"Package Control: in",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Control: r",
+				"Package Control: Remove Package"
+			],
+			[
+				"p i",
+				"Package Control: Install Package"
+			],
+			[
+				"PACK  i p",
+				"Package Control: Install Package"
+			],
+			[
+				"PACK  r p",
+				"Package Control: Remove Package"
+			],
+			[
+				"PACK I P",
+				"Package Control: Install Package"
+			],
+			[
+				"PACK R P",
+				"Package Control: Remove Package"
+			],
+			[
+				"PACK R",
+				"Package Control: Remove Channel"
+			],
+			[
+				"pack r",
+				"Package Control: Remove Package"
+			],
+			[
+				"",
+				"Anaconda: Run Current File Tests"
+			],
+			[
+				"pack c i",
+				"Package Control: Install Package"
+			],
+			[
+				"pack c r",
+				"Package Control: Remove Package"
+			],
+			[
+				"pac i ",
+				"Package Control: Remove Repository"
+			],
+			[
+				"Package Control: install ",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Control: re",
+				"Package Control: Remove Package"
+			],
+			[
+				"Package Control: int",
+				"Package Control: Install Package"
+			],
+			[
+				"packag",
+				"Preferences: Browse Packages"
+			]
+		],
+		"width": 400.0
+	},
+	"console":
+	{
+		"height": 342.0,
+		"history":
+		[
+			"import urllib.request,os; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); open(os.path.join(ipp, pf), 'wb').write(urllib.request.urlopen( 'http://sublime.wbond.net/' + pf.replace(' ','%20')).read())",
+			"import urllib.request,os,hashlib; h = '2915d1851351e5ee549c20394736b442' + '8bc59f460fa1548d1514676163dafc88'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by) ",
+			"import urllib.request,os,hashlib; h = '2915d1851351e5ee549c20394736b442' + '8bc59f460fa1548d1514676163dafc88'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/C/Users/admin/Downloads/cordova/VueCLI",
+		"/C/Users/admin/Downloads/cordova/VueCLI/src",
+		"/C/Users/admin/Downloads/cordova/VueCLI/src/components"
+	],
+	"file_history":
+	[
+		"/C/Users/admin/Downloads/cordova/VueCLI/build/webpack.dev.conf.js.dump",
+		"/C/Users/admin/Downloads/Nordic_v10_Ding_MAG_LIB_20180410/Nordic_v10_Ding/examples/ble_peripheral/experimental_multiactivity_WeChat/hrs_advertiser/source/mag/user_mag_algorithm.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/3_Support/DPark_IST8308/2_Lib_Release/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/3_Support/DPark_IST8308/2_Lib_Release/ist_vehicle_detection.h",
+		"/C/Users/admin/Desktop/ist8308.c",
+		"/C/Users/admin/Desktop/ist_lib_linux/Makefile",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Lib_Release/ist_lib_20180418/sample code/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Driver_Release/MCU_Driver_ist8308/ist8308/inc/ist8308_driver.h",
+		"/C/Users/admin/Desktop/ist_lib_linux/src/ist_calibration.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Lib_Release/READ.MD",
+		"/C/Users/admin/Desktop/ist_lib_linux/src/ist_lib.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Driver_Release/MCU_Driver_ist8308/ist8308/src/ist8308_driver.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/FAE/MCU_Driver_ist8308/ist8308/src/ist8308_driver.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/FAE/MCU_Driver_ist8308/ist8308/inc/ist8308_driver.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/IST_LIB_v2.1.2_0411/Program/ist_lib/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/IST_LIB_v2.1.2_0411/Program/ist_lib/src/ist_lib.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/IST_LIB_v2.1.2_0411/Program/boardSupport.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/FAE/MCU_Driver_ist8310/ist8310/src/ist8310_driver.c",
+		"/C/Users/admin/Desktop/500PTS",
+		"/C/Users/admin/Desktop/ist8310.c",
+		"/C/Users/admin/Documents/VIRTUALBOX_share/ist_lib_linux/Makefile",
+		"/C/Users/admin/Documents/MCU_Algorithm/README.MD",
+		"/C/Users/admin/Desktop/KEIL5_CortexM0_DingDingParking_IST8308/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Lib_Release/istlib_v2.1.2_Build_20180201/ist_lib/Makefile_list/Arm-Linux/Makefile",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Lib_Release/istlib_v2.1.2_Build_20180201/ist_lib/Makefile_list/Hisi/Makefile",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Lib_Release/ist_lib_linux/ist_debug.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Proj_HIKVision_CortexM4_IMUkit_IST8308/2_Lib_Release/ist_lib_linux/src/Makefile",
+		"/C/Users/admin/Desktop/ist8315-j/src/ist8315_driver.c",
+		"/C/Users/admin/Desktop/ist8315-j/mdirection.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Linux_HISI300_Jovision_IST8310/hisi_v300/ist_calibration.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/2_Release Produciton/Demo Version/Demo_EVB_MB_T200/eparking_v1_20180110_demo/Program/istlib/ist_vehicle_detection.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/2_Release Produciton/Demo Version/Demo_EVB_T200/eparking_v1_20180115/Program/istlib/ist_vehicle_detection.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Linux_HISI300_Jovision_IST8310/hisi_v300/IST_LIB.c",
+		"/C/Users/admin/Desktop/ist8308/ist8308.cpp",
+		"/C/Users/admin/Desktop/ist8315-j/src/ist8315.c",
+		"/C/Users/admin/Documents/GitSource/LeetCode_C/2_AddTwoNumbers.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/3_Support/KEIL5_CortexM0_DingDingParking_IST8308/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/Linux_HISI300_Jovision_IST8310/hisi_v300/ist_lib.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/1_Build_Lib/istlib/ist_vehicle_detection.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/1_Build_Lib/istlib/main.c",
+		"/C/Users/admin/Documents/GitSource/LeetCode_C/1_TwoSum.c",
+		"/D/BaiduNetdiskDownload/第二代AMO脱机烧录器共享资料-20180206-支持STM8-STM32-CC25X-NRF5X/版本说明.txt.dump",
+		"/D/BaiduNetdiskDownload/第二代AMO脱机烧录器共享资料-20180206-支持STM8-STM32-CC25X-NRF5X/版本说明.txt",
+		"/C/Users/admin/Desktop/wave_calibration_project/istlib_v211w/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.8_Latest_Version/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Driver/prototype/Driver/ist8310/inc/ist8310_driver.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Driver/prototype/Driver/ist8310/src/ist8310_driver.c",
+		"/C/Users/admin/Documents/GitSource/cordova/package.json",
+		"/C/Users/admin/Documents/GitSource/cordova/package-lock.json",
+		"/C/Users/admin/Documents/GitSource/cordova/www/index.html",
+		"/C/Users/admin/Documents/GitSource/cordova/VueCLI/src/main.js",
+		"/C/Users/admin/Documents/GitSource/cordova/VueCLI/src/components/MainPage.vue",
+		"/C/Users/admin/Documents/GitSource/cordova/VueCLI/src/App.vue",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/HTML-CSS-JS Prettify/HTMLPrettify.sublime-settings",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/HTML-CSS-JS Prettify/Default (Windows).sublime-keymap",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/HTML-CSS-JS Prettify/.jsbeautifyrc.defaults.json",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/User/.jsbeautifyrc",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/3_Support/KEIL5_CortexM0_GemTek_IST8308/2_Lib_Release/ist_lib_b0.3.1/ist_vehicle_detection.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/1_Developing_Project/eparking_v1_20180105_Gemtek_b0.3.1/Program/istlib/ist_vehicle_detection.c",
+		"/C/Users/admin/Desktop/ist_vehicle_detection.c",
+		"/C/Users/admin/Desktop/Process_TiltCompensation.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/科沃斯收集資料_ECOVAC/DataAnalysis.m",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/小車收集資料分析雙羅盤_GyroCompass_TwoCompass/GyroCompassData.m",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/小車收集資料分析雙羅盤_GyroCompass_TwoCompass/AngleAccurancy.m",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/小車收集資料分析雙羅盤_GyroCompass_TwoCompass/Data.m",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/小車收集資料分析雙羅盤_GyroCompass_TwoCompass/DataplotFusion.m",
+		"/C/Users/admin/Desktop/project_build_lib_minmax/Program/ist_lib/src/ist_calibration.c",
+		"/C/Users/admin/Desktop/project_build_lib_minmax/Program/ist_lib/src/IST_LIB.c",
+		"/C/Users/admin/Desktop/project_build_lib_minmax/Program/ist_lib/src/ist_math.c",
+		"/C/Users/admin/Desktop/project_build_lib_minmax/Program/ist_lib/inc/ist_math.h",
+		"/C/Users/admin/Desktop/project_build_lib_minmax/Program/ist_lib/inc/IST_LIB.h",
+		"/C/Users/admin/Desktop/project_build_lib_minmax/Program/ist_lib/inc/ist_calibration.h",
+		"/C/Users/admin/Desktop/project_build_lib_minmax/Program/ist_lib/inc/config.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/小車收集資料分析雙羅盤_GyroCompass_TwoCompass/DataFusionAnalysis_CF4.m",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/小車收集資料分析_GyroCompass/DataAnalysis.m",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_GyroCompass_Robot/CleanRobot_Doc/Matlab_Analysis/小車收集資料分析雙羅盤_GyroCompass_TwoCompass/DataFusionAnalysis_KF2.m",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.3_MaxMin_MCU4bit/src/IST_LIB.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.3_MaxMin_MCU4bit/src/ist_math.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.3_MaxMin_MCU4bit/src/ist_calibration.c",
+		"/C/Users/admin/Documents/VIRTUALBOX_share/px4/ist8308/ist8308.cpp",
+		"/C/Users/admin/Documents/VIRTUALBOX_share/px4/ist8308/ist8308_driver.c",
+		"/C/Users/admin/Documents/VIRTUALBOX_share/px4/ist8308/ist8308_driver.h",
+		"/C/Users/admin/Documents/VIRTUALBOX_share/px4/ist8308/ist8308.cpp.dump",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/ch21_memory_ROM.c",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/Function/ch2_function_and_point.c",
+		"/C/Users/admin/Documents/VIRTUALBOX_share/px4/ist8308/ist8308.cpp~",
+		"/C/Users/admin/Downloads/ist8308_driver.h",
+		"/C/Users/admin/Downloads/ist8308_driver.c",
+		"/C/Users/admin/Desktop/test.c",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/ch12_stdinout_point.c",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/ch19_struct_memory_alignment.c",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/ch18_3DArray_Points.c",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/ch20_memory_location.c",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/ch18.c",
+		"/C/Users/admin/Documents/GitSource/C_Learning/maiziedu/ch12.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/1_Developing_Project/IMUDevKit_ModuleSTD_DynamicMeasure_b0.3.1/Program/ist_lib/ist_vehicle_detection.c",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/User/C_Compiler.sublime-build",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/User/g++ c code builder.sublime-build",
+		"/C/Users/admin/Documents/GitSource/STM32Cube_AngularSensor/Angular_Sensor_Demo_v3/Src/adc.c",
+		"/C/Users/admin/Documents/GitSource/STM32Cube_AngularSensor/Stm32f303CBT6_AngularSensor/Src/opamp.c",
+		"/C/Users/admin/Documents/GitSource/STM32Cube_AngularSensor/Angular_Sensor_Demo_v3/Src/main.c",
+		"/C/Users/admin/Documents/GitSource/STM32Cube_AngularSensor/Angular_Sensor_Demo_v3/Src/tim.c",
+		"/C/Users/admin/Documents/GitSource/Stm32F3_AngularSensor/Angular_Sensor_Demo_v3/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_opamp_ex.c",
+		"/C/Users/admin/Documents/GitSource/Stm32F3_AngularSensor/Angular_Sensor_Demo_v3/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_opamp.c",
+		"/C/Users/admin/Documents/GitSource/Stm32F3_AngularSensor/Angular_Sensor_Demo_v2/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_opamp.c",
+		"/C/Users/admin/Documents/GitSource/Stm32F3_AngularSensor/Angular_Sensor_Demo_v3/Src/opamp.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/2_IST8308_LowerMode_Driver/ist8308_driver.c.dump",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/2_IST8308_LowerMode_Driver/ist8308_driver.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/2_IST8308_LowerMode_Driver/IST8308/ist8308_driver.c.dump",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/2_IST8308_LowerMode_Driver/IST8308/ist8308_driver.c",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/User/ClickableUrls.sublime-settings",
+		"/C/Users/admin/Documents/GitSource/mainpage/_data/ui-text.yml.dump",
+		"/C/Users/admin/AppData/Roaming/Sublime Text 3/Packages/User/Default.sublime-mousemap",
+		"/C/Users/admin/Documents/MCU_Algorithm/FAE/MCU_Driver_ist8305V4/ist8305_v4/inc/ist8305_driver.h",
+		"/C/Users/admin/Documents/MCU_Algorithm/FAE/MCU_Driver_ist8305/ist8305/src/ist8305_driver.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/FAE/MCU_Driver_ist8305V4/ist8305_v4/src/ist8305_driver.c",
+		"/C/Windows/System32/drivers/silabenm.sys",
+		"/C/Users/admin/Desktop/虛擬現實/IST_LIB_v2.1.2/sample code/main.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VirtualWall/3_Support/KEIL_CortexM3_Yxrobot_IST8312/KEIL_CortexM3_VirtualWall/ist_virtualwall.h",
+		"/C/Users/admin/Desktop/虛擬現實/IST_calib_interface.h",
+		"/C/Users/admin/Desktop/虛擬現實/IST_calib_interface.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/3_Support/KEIL5_CortexM0_GemTek_IST8308/2_Driver_Release/IST8308/ist8308_driver.c.dump",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VehicleDetection/3_Support/KEIL5_CortexM0_GemTek_IST8308/2_Driver_Release/IST8308/ist8308_driver.c",
+		"/C/Users/admin/Desktop/虛擬現實/IST_LIB_v2.1.2/ist_lib/src/ist_lib.c",
+		"/C/Users/admin/Desktop/虛擬現實/IST_LIB_v2.1.2/build_lib_2.1.2/Program/ist_lib/inc/ist_lib.h",
+		"/C/Users/admin/Desktop/虛擬現實/IST_LIB_v2.1.2/ist_lib/src/ist_accurancy.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VirtualWall/1_Developing_Project/ISTDevKit_VirtualWall_v1.0.3/Program/ist_lib/src/ist_virtualwall.c",
+		"/C/Users/admin/Documents/MCU_Algorithm/Algo_VirtualWall/3_Support/KEIL_CortexM3_Yxrobot_IST8312/IST_LIB/inc/ist_virtualwall.h"
+	],
+	"find":
+	{
+		"height": 55.0
+	},
+	"find_in_files":
+	{
+		"height": 170.0,
+		"where_history":
+		[
+			"<current file>",
+			"C:\\Users\\admin\\Documents\\MCU_Algorithm\\Algo_VehicleDetection\\1_Developing_Project\\IMUDevKit_ModuleSTD_DynamicMeasure_b0.3a",
+			"<current file>",
+			"D:\\BaiduNetdiskDownload\\AHRS Development Kit 20161215\\M451BSP\\SampleCode\\AHRS_Project\\",
+			"D:\\BaiduNetdiskDownload\\AHRS Development Kit 20161215\\M451BSP\\SampleCode\\AHRS_Project\\AHRS_RD",
+			"<current file>",
+			"C:\\Users\\admin\\Documents\\project\\GridEye_NuvotonM450\\Nuvoton\\M451SeriesBSP_CMSIS_v3.00.003",
+			"C:\\Users\\admin\\Documents\\MCU_Algorithm\\Algorithm\\1_Algorithm_Developing_Project\\IST8310_STM32F4_Plane_v1.1.0\\Code type\\HARDWARE\\IST_LIB",
+			"<current file>,<open folders>",
+			"<current file>",
+			"<current file>,<open folders>",
+			"<current file>",
+			"<open folders>,<current file>",
+			"<open folders>",
+			"C:\\Users\\admin\\Desktop\\MTK4.4 Golden\\daemon open all (no log)\\istd8303",
+			"C:\\Users\\admin\\Desktop\\MTK4.4 Golden\\daemon open all (no log)\\istd8303\\sdk_src",
+			"C:\\Users\\admin\\Desktop\\MTK4.4 driver test\\build\\tools",
+			"C:\\Users\\admin\\Desktop\\MTK4.4 driver test\\build",
+			"C:\\Users\\admin\\git\\raceflight_community",
+			"C:\\Users\\admin\\git\\raceflight_community\\src",
+			"C:\\Users\\admin\\git\\raceflight_community\\src\\main\\drivers",
+			"C:\\Users\\admin\\git\\raceflight_community",
+			"C:\\Users\\admin\\Desktop\\istd830x",
+			"C:\\Users\\admin\\Desktop\\sensorservice",
+			"C:\\Users\\admin\\git\\cleanflight",
+			"C:\\Users\\admin\\Documents\\GitSource\\Open-Source-Sensor-Fusion\\Sources",
+			"C:\\Users\\admin\\Documents\\GitSource\\MissionPlanner",
+			"C:\\Users\\admin\\git\\cleanflight\\src",
+			"C:\\Users\\admin\\git\\cleanflight\\src\\main",
+			"C:\\Users\\admin\\git\\cleanflight",
+			"C:\\px4\\APM-Compass\\libraries\\AP_Compass",
+			"C:\\Users\\admin\\git\\cleanflight\\src\\main\\drivers",
+			"C:\\Users\\admin\\Documents\\1 GitSource\\crazepony-firmware-none",
+			"C:\\Users\\admin\\git\\cleanflight",
+			"C:\\Users\\admin\\git\\betaflight",
+			"<current file>",
+			"C:\\Users\\admin\\git\\cleanflight\\src",
+			"<current file>",
+			"C:\\Users\\admin\\git\\cleanflight",
+			"C:\\Users\\admin\\git\\cleanflight\\src\\main\\flight",
+			"C:\\Users\\admin\\git\\cleanflight\\src",
+			"C:\\Users\\admin\\git\\cleanflight\\src\\main",
+			"<current file>",
+			"C:\\Users\\admin\\git\\cleanflight\\src\\main",
+			"C:\\Users\\admin\\git\\cleanflight",
+			"C:\\Users\\admin\\git\\cleanflight\\src\\main",
+			"C:\\Users\\admin\\git\\cleanflight\\src",
+			"C:\\Users\\admin\\Documents\\1 F3 src code\\SPRacingF3_IST830X\\src\\main",
+			"C:\\Users\\admin\\Documents\\1 F3 src code\\SPRacingF3_IST830X\\src\\main\\drivers",
+			"C:\\Users\\admin\\Documents\\1 F3 src code\\SPRacingF3_IST830X\\src\\main\\target",
+			"C:\\Users\\admin\\Documents\\1 F3 src code\\SPRacingF3_IST830X\\src\\main\\io",
+			"C:\\Users\\admin\\Documents\\1 F3 src code\\SPRacingF3_IST830X\\src\\main\\sensors",
+			"C:\\Users\\admin\\Documents\\1 F3 src code\\SPRacingF3_IST830X\\src",
+			"C:\\Users\\admin\\Documents\\1 F3 src code\\SPRacingF3_IST830X\\src\\main",
+			"C:\\px4\\APM-Compass\\ArduCopter",
+			"C:\\px4\\APM-Compass\\libraries",
+			"C:\\px4\\APM-Compass\\libraries\\AP_Compass",
+			"C:\\px4\\APM-Compass\\ArduCopter",
+			"C:\\px4\\APM-Compass\\libraries\\AP_Compass",
+			"<current file>",
+			"C:\\px4\\APM-Compass",
+			"C:\\px4\\APM-Compass\\libraries\\AP_Compass",
+			"C:\\px4\\APM-Compass\\libraries",
+			"C:\\px4\\APM-Compass",
+			"C:\\px4\\ardupilot\\ArduCopter",
+			"C:\\px4\\ardupilot\\libraries\\AP_Compass",
+			"C:\\px4\\ardupilot\\libraries\\AP_HAL",
+			"C:\\Users\\admin\\Documents\\2 AKM\\AKMDFS-master\\akmdfs",
+			"C:\\Users\\admin\\Documents\\1 APM src code env\\ardupilot-ArduCopter-3.2.1.1\\libraries",
+			"C:\\Users\\admin\\Documents\\1 APM src code env\\ardupilot-ArduCopter-3.2.1.1\\libraries\\AP_Compass",
+			"C:\\Users\\admin\\Documents\\1 APM src code env\\ardupilot-ArduCopter-3.2.1.1\\libraries\\AP_HAL",
+			"C:\\Users\\admin\\Documents\\1 APM src code env\\ardupilot-ArduCopter-3.2.1.1\\libraries\\AP_Compass",
+			"C:\\Users\\admin\\Documents\\1 APM src code env\\ardupilot-ArduCopter-3.2.1.1\\libraries",
+			"C:\\Users\\admin\\Documents\\1 APM src code env\\ardupilot-ArduCopter-3.2.1.1\\libraries\\AP_Compass",
+			"<current file>",
+			"C:\\dev\\cleanflight\\src\\main",
+			"C:\\dev\\cleanflight\\src",
+			"<current file>",
+			"C:\\dev\\cleanflight\\src",
+			"C:\\dev\\cleanflight\\src\\main\\sensors",
+			"C:\\dev\\cleanflight",
+			"<current file>",
+			""
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": true,
+		"find_history":
+		[
+			"cmdCode",
+			"MAG_LSBTOUT",
+			"IST8308_SENSITIVITY_6_6",
+			"mgsensor_init",
+			"format_on_save",
+			"format_on_save ",
+			"format ",
+			"htm",
+			"html",
+			"run_env_calibration",
+			"ENABLE_NOISE_REDUCE",
+			"sampleRate",
+			"OSR",
+			"ist8308_OperationMode",
+			"0x0C",
+			"0x0c",
+			"OPMODE_SELF_TEST_MODE",
+			"ist_i2c_read(IST8308_SLA,",
+			"ist_i2c_write(IST8308_SLA,",
+			"ist_i2c_write(IST8308_SLA, ",
+			"ist_delay",
+			"modeType",
+			"IST8308_OPMODE",
+			"ADDR_STAT2",
+			"IST8308_CONVERSION_INTERVAL",
+			"trampoline",
+			"collect",
+			"IST8308_CONVERSION_INTERVAL",
+			"IST8310_REG_SELECTION_REG",
+			"OPAMP_VREF_10VDDA",
+			"OPAMP_VREF_90VDDA",
+			"90",
+			"ist8308_ControlMode",
+			"IST8305_REG_CNTRL3",
+			"on_ist_calib_status_fresh",
+			"on_ist_calib_load_saved_parameter",
+			"VirtualWall_INIT_LSB",
+			"USE_CALLOC_MEMORY",
+			"DETECTION_THRESHOLD",
+			"detectOverEnv",
+			"VM_Len",
+			"hdma_adc2",
+			"TIM3",
+			"RCC_TIM3",
+			"TIM3",
+			"TIM",
+			"tim",
+			"htim6",
+			"39.0",
+			"39.1",
+			"39.",
+			"31.",
+			"MAG_05D_DEGREE_ACCURANCY_MODE",
+			"ADCvalue",
+			"ADvalue2",
+			"HAL_OPAMP_MspInit",
+			"OPAMP_TIMERCONTROLLEDMUXMODE_DISABLE",
+			"%d",
+			"reportType",
+			"magLen",
+			"epk_modbus",
+			"ENABLE_LAST_DETECT_STATE",
+			"ENABLE_INIT_BIAS_CHECK",
+			"ENABLE_FLASH",
+			"ENABLE_INIT_BIAS_CHECK",
+			"activeReport",
+			"ledShow",
+			"MODREG_LED_SHOW",
+			"epk_read_from_flash",
+			"epk_user_setting",
+			"DETECT_LAST_STATE_ENABLE",
+			"DETECT_THRESHOLD_LOW",
+			"magEnvLen",
+			"ENABLE_INIT_BIAS_CHECK",
+			"epk_read_from_flash",
+			"EPK_ACTIVE_REPORT",
+			"bias",
+			"ENABLE_NOISE_REDUCE",
+			"ENABLE_NOISE_REDUCE\n",
+			"epk_active_report",
+			"ENABLE_NOISE_REDUCE",
+			"Get_VehicleDetection_Stable",
+			"run_env_calibration",
+			"copyArray",
+			"rawMagData",
+			"complementaryFilter",
+			"com",
+			"detectThreshold",
+			"Get_VehicleDetection_Sensitivity",
+			"Set_VehicleDetection_Sensitivity",
+			"detectThreshold",
+			"Set_VehicleDetection_Sensitivity",
+			"DETECTION_THRESHOLD",
+			"DETECT_THRESHOLD_HIGH",
+			"run_exterCar_detection",
+			"STATE_CODE_C321",
+			"STATE_CODE_C323",
+			"STATE_CODE_C323\n",
+			"Env_Calibrated_Status",
+			"ENABLE_FLASE",
+			"STABLE_CNT_MAX",
+			"STATE_CAR",
+			"sendDataStatus",
+			"detectAPI->sendDataStatus",
+			"SEND_STABLE_CNT",
+			"get_send_data",
+			"bsp_gpio_sleep_detect",
+			"ekp_debug_mode",
+			"true",
+			"ISTModSlave_ReadAddr",
+			"MagVehicleState_Env",
+			"PACKET_LEN",
+			"ISTModSlave_WriteAddr",
+			"temp",
+			"raw",
+			"QA_read_from_flash",
+			"QA_write_to_flash",
+			"ComputeRotation",
+			"Process_CalculateVectorAngle",
+			"dynamicRelease",
+			"cross",
+			"STATE_NONE",
+			"set_detectStatus",
+			"detectStateCode",
+			"Get_VehicleDetection_StateCode",
+			"set_detectStatus",
+			"detectLastStatus",
+			"STATE_CODE_C321"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+			"read_reg(",
+			"write_reg(",
+			"write_reg",
+			"usleep",
+			"ADDR_OPMODE",
+			"OPAMP_VREF_50VDDA",
+			"magLen",
+			"ADvalue",
+			"%6d",
+			"ENABLE_LAST_DETECT_STATE",
+			"bias_and_setting",
+			"detectAPI->detectThreshold",
+			"STATE_CODE_ENV_FAULT",
+			"STATE_CODE_EXT",
+			"magCarLen",
+			"magPreEnvLen",
+			"magEnvLen",
+			"changeRate",
+			"%",
+			"",
+			"(:,1)",
+			"",
+			"Bias(i)",
+			"(i)",
+			"",
+			"Get_VectorNorm",
+			"get_vectorNorm",
+			"get_varance",
+			"Mod->",
+			"magKF->",
+			"rawMag",
+			"ENV_UPDATE_FACTOR",
+			"get_send_data",
+			"get_adaptive_env_bias",
+			"set_env_bias",
+			"get_env_bias",
+			"get_maxmin_boundary",
+			"run_env_calibration",
+			"run_vehicle_detect",
+			"sendEmptyCNT",
+			"sendCarCNT",
+			"detectStableCNT",
+			"detectMovingCNT",
+			"detectPreVector",
+			"detectVector",
+			"detectRate",
+			"new_input",
+			"MAG_LSB_TO_mG",
+			"STATE_MOVING",
+			"STATE_EMPTY",
+			"STATE_CAR",
+			"STATE_CALIBRATING",
+			"DETECT_LAST_STATE_ENABLE",
+			"detectAPI",
+			"sendEmptyCounter",
+			"sendCarCounter",
+			"sendDataCarCounter",
+			"sendDataStatus",
+			"measureRate",
+			"detectLastStatus",
+			"detectStatus",
+			"magStableCounter",
+			"magMovingCounter",
+			"preDistortVector",
+			"distortVector",
+			"caliMagData",
+			"envCaliStatus",
+			"envUpdateCounter",
+			"envBias",
+			"istMagCalibration.limitBias",
+			"istMagCalibration.",
+			"Get_MaxMin_Bias_Boundary",
+			"startpoint:endpoint",
+			"VAR",
+			"print_counter",
+			"USART2",
+			"Kalman_P",
+			"Kalman_X",
+			"Kalman_Gain",
+			"print(",
+			"w_bias1",
+			"w_bias0",
+			"IST8303E",
+			"ist8303E",
+			"IST8303E",
+			"ist8303E",
+			"IST8310_ADDRESS",
+			"ist8310",
+			"8310",
+			"ist8310",
+			"IST8310",
+			"IST8305",
+			"<current file>\n<current file>\nIST8305",
+			"",
+			"IST8303\nIST8303_R_CONF1",
+			"IST8303_R_CONF2\nIST8303_R_CONF1",
+			"\nIST8303_R_CONF1",
+			"IST8303",
+			"ist8303"
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 4,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 23,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								23,
+								16
+							]
+						],
+						"settings":
+						{
+							"auto_name": "BMA455 / BMA456",
+							"incomplete_sync": null,
+							"is_init_dirty_state": true,
+							"syntax": "Packages/Text/Plain text.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 4,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/C/Users/admin/Desktop/MainPage.vue",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 15360,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								10684,
+								10684
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/Vuejs Complete Package/vue.tmLanguage",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 6671.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.8_Latest_Version/Makefile_list/Microchip-XC16/Makefile",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 227,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"origin_encoding": "ASCII",
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/Makefile/Makefile.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/v2 Algorithm/v2.0.8_Latest_Version/Makefile_list/Hisi/Makefile",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 255,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"origin_encoding": "ASCII",
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/Makefile/Makefile.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "/C/Users/admin/Documents/MCU_Algorithm/Algo_MagCalibration/3_Support/KEIL_CortexM4_GoerTek _IST8310/mcu_arm_linux/20170706/mcu_arm_linux_v2_0_3_20170706/Makefile",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 426,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								378,
+								0
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"origin_encoding": "ASCII",
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/Makefile/Makefile.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 55.0
+	},
+	"input":
+	{
+		"height": 38.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.SublimeLinter":
+	{
+		"height": 0.0
+	},
+	"output.SublimeLinter Messages":
+	{
+		"height": 122.0
+	},
+	"output.astyle_error_message":
+	{
+		"height": 0.0
+	},
+	"output.exec":
+	{
+		"height": 140.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"output.sftp":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "Packages/User/C_Compiler.sublime-build",
+	"project": "LearningCode.sublime-project",
+	"replace":
+	{
+		"height": 50.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"mag",
+				"APM-Compass\\Tools\\scripts\\magfit_flashlog.py"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"C:\\Users\\admin\\Documents\\GitSource\\teamproject.sublime-workspace"
+			]
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 392.0,
+		"last_filter": "process",
+		"selected_items":
+		[
+			[
+				"process",
+				"Process"
+			],
+			[
+				"",
+				"$(OBJECT_DIR)/baro_bmp085_unittest :"
+			]
+		],
+		"width": 1298.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 270.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
